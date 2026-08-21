@@ -172,3 +172,34 @@
 9. 배운 점
 
 기술의 개수보다 하나의 문제를 발견하고 근거를 가지고 해결한 과정을 깊이 있게 설명하는 것을 우선합니다.
+
+## 로컬 개발 환경 실행
+
+요구사항은 Java 17과 Docker Desktop입니다. Gradle은 Wrapper를 사용하므로 별도 설치가 필요하지 않습니다.
+
+```powershell
+Copy-Item .env.example .env
+```
+
+`.env`의 `DB_PASSWORD`를 로컬 개발용 값으로 변경한 다음 PostgreSQL을 실행합니다.
+
+```powershell
+docker compose up -d
+docker compose ps
+```
+
+PostgreSQL이 healthy 상태가 되면 애플리케이션을 실행합니다.
+
+```powershell
+.\gradlew.bat bootRun
+```
+
+Swagger UI는 `http://localhost:8080/swagger-ui.html`, Health Check는 `http://localhost:8080/actuator/health`에서 확인할 수 있습니다.
+
+통합 테스트는 Docker가 실행 중인 상태에서 수행합니다.
+
+```powershell
+.\gradlew.bat test
+```
+
+테스트는 Testcontainers가 별도 PostgreSQL을 기동하므로 로컬 개발 DB 데이터에 의존하지 않습니다.
