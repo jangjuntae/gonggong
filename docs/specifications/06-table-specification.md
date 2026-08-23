@@ -124,10 +124,13 @@
 | product_id | BIGINT | N | PK | IDENTITY | 상품 ID |
 | code | VARCHAR(30) | N | - | UNIQUE | 상품 코드 |
 | name | VARCHAR(100) | N | - | - | 상품명 |
+| description | VARCHAR(500) | Y | - | - | 상품 설명 |
 | max_amount | NUMERIC(19,2) | N | - | CHECK > 0 | 최대 신청액 |
 | active | BOOLEAN | N | - | DEFAULT TRUE | 활성 여부 |
+| created_at | TIMESTAMPTZ | N | - | DEFAULT CURRENT_TIMESTAMP | 생성 시각 |
+| updated_at | TIMESTAMPTZ | N | - | DEFAULT CURRENT_TIMESTAMP | 수정 시각 |
 
-인덱스: `(active, code)`. 삭제 정책: 비활성화. 주요 무결성 규칙: 금리·기간의 버전 귀속 여부 TODO.
+인덱스: `(active, code)`. 삭제 정책: 비활성화. 주요 무결성 규칙: 금리와 상환 조건은 상품 기본정보가 아니라 규칙 버전에 귀속한다.
 
 ## PRODUCT_RULE_VERSION
 
@@ -140,8 +143,14 @@
 | version_no | INTEGER | N | - | UNIQUE(product_id, version_no) | 버전 |
 | valid_from | TIMESTAMPTZ | N | - | - | 적용 시작 시각 |
 | valid_to | TIMESTAMPTZ | Y | - | CHECK(valid_to > valid_from) | 적용 종료 시각 |
+| interest_rate | NUMERIC(7,4) | N | - | CHECK >= 0 | 연 금리(퍼센트 값) |
+| repayment_months | INTEGER | N | - | CHECK > 0 | 상환 개월 수 |
+| repayment_method | VARCHAR(30) | N | - | CHECK | 상환 방식 |
+| active | BOOLEAN | N | - | DEFAULT TRUE | 현재 활성 버전 여부 |
+| created_at | TIMESTAMPTZ | N | - | DEFAULT CURRENT_TIMESTAMP | 생성 시각 |
 
-인덱스: `(product_id, valid_from, valid_to)`. 삭제 정책: 참조 후 삭제 금지. 주요 무결성 규칙: 유효기간 중첩 방지는 exclusion constraint 검토.
+인덱스: `(product_id, valid_from, valid_to)`, 활성 행에 한정한 `UNIQUE(product_id) WHERE active = TRUE`.
+삭제 정책: 참조 후 삭제 금지. 주요 무결성 규칙: MVP에서는 상품별 활성 규칙 버전을 최대 하나만 허용하며 비활성 과거 버전은 여러 개 보존한다.
 
 ## ELIGIBILITY_RULE
 
@@ -152,8 +161,9 @@
 | rule_id | BIGINT | N | PK | IDENTITY | 규칙 ID |
 | rule_version_id | BIGINT | N | FK | PRODUCT_RULE_VERSION | 규칙 버전 |
 | rule_type | VARCHAR(40) | N | - | CHECK/TODO | 연령·소득 등 |
-| operator | VARCHAR(20) | N | - | CHECK/TODO | 비교 연산자 |
+| operator | VARCHAR(30) | N | - | CHECK/TODO | 비교 연산자 |
 | comparison_value | VARCHAR(200) | N | - | TODO | 비교 기준값 |
+| description | VARCHAR(500) | Y | - | - | 자격조건 설명 |
 
 인덱스: `(rule_version_id, rule_type)`. 삭제 정책: 버전 확정 후 불변. 주요 무결성 규칙: 안전한 규칙 표현식 형식 TODO.
 
