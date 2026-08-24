@@ -20,6 +20,7 @@ public class ApplicationService {
     private final FinancialProductRepository financialProductRepository;
     private final ProductRuleVersionRepository productRuleVersionRepository;
     private final PolicyFinanceApplicationRepository applicationRepository;
+    private final StatusHistoryRepository statusHistoryRepository;
     private final Clock clock;
 
     public ApplicationService(
@@ -27,12 +28,14 @@ public class ApplicationService {
             FinancialProductRepository financialProductRepository,
             ProductRuleVersionRepository productRuleVersionRepository,
             PolicyFinanceApplicationRepository applicationRepository,
+            StatusHistoryRepository statusHistoryRepository,
             Clock clock
     ) {
         this.customerRepository = customerRepository;
         this.financialProductRepository = financialProductRepository;
         this.productRuleVersionRepository = productRuleVersionRepository;
         this.applicationRepository = applicationRepository;
+        this.statusHistoryRepository = statusHistoryRepository;
         this.clock = clock;
     }
 
@@ -67,7 +70,17 @@ public class ApplicationService {
     public PolicyFinanceApplication submitApplication(Long applicationId) {
         PolicyFinanceApplication application = applicationRepository.findById(applicationId)
                 .orElseThrow(() -> new ApplicationBusinessException("Application not found: " + applicationId));
-        application.submit(clock.instant());
+        ApplicationStatus previousStatus = application.getStatus();
+        Instant changedAt = clock.instant();
+        application.submit(changedAt);
+        statusHistoryRepository.save(new StatusHistory(
+                application,
+                previousStatus,
+                application.getStatus(),
+                null,
+                changedAt,
+                "Application submitted"
+        ));
         return application;
     }
 

@@ -18,6 +18,8 @@
 
 ## 허용 전이
 
+STEP 05 구현 기준: 모든 전이는 변경 일시, 변경 전·후 상태와 사유를 `STATUS_HISTORY`에 기록한다. 직원이 수행한 전이는 처리 직원 FK를 기록하고, 시스템 전이는 처리 직원 FK를 NULL로 둔다.
+
 | 이전 | 이후 | 주체/조건 |
 |---|---|---|
 | DRAFT | RECEIVED | 고객, 접수 검증 통과 |
@@ -31,6 +33,8 @@
 | EXECUTED | REPAYING | 상환계획 활성화 |
 | REPAYING | REPAID | 미납 잔액 0 |
 | REPAID | CLOSED | 종료 조건 충족 |
+
+MVP 완료 판정은 신청에 고정된 규칙 버전의 모든 자격규칙에 대응하는 `SCREENING_RESULT`가 저장됐는지 확인한다. `passed=false`는 미실행이 아니라 완료된 평가 결과로 구분하며 자동으로 `REJECTED` 처리하지 않는다. 자격 미충족 신청을 수동 심사로 넘길지에 대한 최종 정책은 TODO이다.
 
 ```mermaid
 stateDiagram-v2
@@ -52,5 +56,4 @@ stateDiagram-v2
 
 `DRAFT → APPROVED`, `REJECTED → EXECUTED`, `RECEIVED → REPAYING` 등 표에 없는 전이는 금지한다. 거절 후 `CLOSED` 전이 필요 여부와 신청 철회·취소 상태는 TODO이다.
 
-모든 전이는 처리자, 처리일시, 변경 전·후 상태와 변경 사유를 `STATUS_HISTORY`에 기록한다. 동시 변경 충돌 방지를 위해 낙관적 락을 우선 검토한다.
-
+직원이 수행한 상태 전이는 처리 직원을 기록하고, 시스템이 수행한 상태 전이는 `changed_by_employee_id`를 NULL로 기록한다. 모든 전이는 처리일시, 변경 전·후 상태와 변경 사유를 `STATUS_HISTORY`에 기록한다. 동시 변경 충돌 방지를 위해 낙관적 락을 우선 검토한다.

@@ -24,6 +24,9 @@ erDiagram
     APPLICATION ||--o{ SCREENING_RESULT : has_results
     ELIGIBILITY_RULE ||--o{ SCREENING_RESULT : evaluated_by
     APPLICATION ||--o{ STATUS_HISTORY : changes
+    EMPLOYEE o|--o{ STATUS_HISTORY : changed_by
+    APPLICATION ||--o{ APPLICATION_REVIEW : manual_reviews
+    EMPLOYEE ||--o{ APPLICATION_REVIEW : reviews
     APPLICATION ||--o| LOAN : results_in
     LOAN ||--o{ REPAYMENT_SCHEDULE : schedules
     LOAN ||--o{ FINANCIAL_TRANSACTION : records
@@ -93,6 +96,8 @@ erDiagram
         bigint assigned_by_employee_id FK
         timestamptz assigned_at
         timestamptz released_at
+        boolean active
+        string reason
     }
     SCREENING_RESULT {
         bigint id PK
@@ -103,6 +108,16 @@ erDiagram
     STATUS_HISTORY {
         bigint id PK
         bigint application_id FK
+        bigint changed_by_employee_id FK
+        string before_status
+        string after_status
+    }
+    APPLICATION_REVIEW {
+        bigint id PK
+        bigint application_id FK
+        bigint employee_id FK
+        string action
+        string comment
     }
     LOAN {
         bigint id PK
