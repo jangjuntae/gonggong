@@ -10,13 +10,17 @@
 |---|---|---|---|---|---|
 | customer_id | BIGINT | N | PK | IDENTITY | 고객 ID |
 | customer_no | VARCHAR(30) | N | - | UNIQUE | 업무 고객번호 |
-| name_enc | BYTEA | N | - | - | 암호화 이름(TODO) |
-| phone_enc | BYTEA | N | - | - | 암호화 전화번호 |
-| created_at | TIMESTAMPTZ | N | - | - | 생성 시각 |
+| name | VARCHAR(100) | N | - | - | MVP 가상 고객명 |
+| birth_date | DATE | N | - | - | 생년월일 |
+| annual_income | NUMERIC(19,2) | N | - | CHECK >= 0 | 연 소득 |
+| credit_score | INTEGER | N | - | CHECK 0..1000 | 신용점수 |
+| region | VARCHAR(50) | N | - | - | 지역 코드 또는 명칭 |
+| business_start_date | DATE | Y | - | - | 사업 시작일 |
+| created_at | TIMESTAMPTZ | N | - | DEFAULT CURRENT_TIMESTAMP | 생성 시각 |
 
 인덱스: `UK(customer_no)`, 검색용 해시 인덱스 TODO.  
 삭제 정책: 논리 삭제 또는 비식별화; 보존 기간 TODO.  
-주요 무결성 규칙: 실제 개인정보는 개발·테스트에 사용하지 않는다.
+주요 무결성 규칙: 실제 개인정보는 개발·테스트에 사용하지 않는다. 이름 등 개인정보 암호화는 Security 단계 TODO이다.
 
 ## EMPLOYEE
 
@@ -149,7 +153,7 @@
 | active | BOOLEAN | N | - | DEFAULT TRUE | 현재 활성 버전 여부 |
 | created_at | TIMESTAMPTZ | N | - | DEFAULT CURRENT_TIMESTAMP | 생성 시각 |
 
-인덱스: `(product_id, valid_from, valid_to)`, 활성 행에 한정한 `UNIQUE(product_id) WHERE active = TRUE`.
+인덱스: `(product_id, valid_from, valid_to)`, 활성 행에 한정한 `UNIQUE(product_id) WHERE active = TRUE`, 신청 복합 FK 참조용 `UNIQUE(product_id, rule_version_id)`.
 삭제 정책: 참조 후 삭제 금지. 주요 무결성 규칙: MVP에서는 상품별 활성 규칙 버전을 최대 하나만 허용하며 비활성 과거 버전은 여러 개 보존한다.
 
 ## ELIGIBILITY_RULE
@@ -176,15 +180,17 @@
 | application_id | BIGINT | N | PK | IDENTITY | 신청 ID |
 | customer_id | BIGINT | N | FK | CUSTOMER | 신청 고객 |
 | product_id | BIGINT | N | FK | FINANCIAL_PRODUCT | 상품 |
-| rule_version_id | BIGINT | N | FK | PRODUCT_RULE_VERSION | 접수 시 규칙 |
+| rule_version_id | BIGINT | N | FK | PRODUCT_RULE_VERSION | 신청 생성 시 고정한 규칙 |
 | status | VARCHAR(30) | N | - | CHECK | 현재 상태 |
 | requested_amount | NUMERIC(19,2) | N | - | CHECK > 0 | 신청액 |
 | received_at | TIMESTAMPTZ | Y | - | - | 접수 시각 |
+| created_at | TIMESTAMPTZ | N | - | DEFAULT CURRENT_TIMESTAMP | 생성 시각 |
+| updated_at | TIMESTAMPTZ | N | - | DEFAULT CURRENT_TIMESTAMP | 수정 시각 |
 | version | BIGINT | N | - | DEFAULT 0 | 낙관적 락 |
 
 인덱스: `(customer_id, received_at DESC)`, `(status, received_at)`, 중복신청 부분 인덱스 TODO.  
 삭제 정책: 접수 후 삭제 금지.  
-주요 무결성 규칙: 신청 상품과 규칙 버전의 상품 일치 검증 필요.
+주요 무결성 규칙: 신청 생성 시 유효한 활성 규칙 버전을 선택하고 이후 변경하지 않는다. `(product_id, rule_version_id)` 복합 FK로 신청 상품과 규칙 버전의 상품 일치를 보장한다.
 
 ## APPLICATION_ASSIGNMENT
 
@@ -220,17 +226,18 @@
 
 ## SCREENING_RESULT
 
-목적: 자동·수동 심사 결과와 근거 보존.
+목적: STEP 04 자동 자격검증의 규칙별 결과와 근거 보존. 수동 심사 결과 확장은 STEP 05에서 검토한다.
 
 | 컬럼 | 타입 | NULL | PK/FK | 제약조건 | 설명 |
 |---|---|---|---|---|---|
 | screening_id | BIGINT | N | PK | IDENTITY | 심사 ID |
 | application_id | BIGINT | N | FK | APPLICATION | 신청 |
-| employee_id | BIGINT | Y | FK | EMPLOYEE | 시스템 심사는 NULL |
-| result | VARCHAR(20) | N | - | CHECK | 결과 |
-| reason | TEXT | N | - | - | 판단 근거 |
+| eligibility_rule_id | BIGINT | N | FK | ELIGIBILITY_RULE | 평가한 자격조건 |
+| passed | BOOLEAN | N | - | - | 규칙 통과 여부 |
+| reason | VARCHAR(500) | N | - | - | 판단 근거 |
+| checked_at | TIMESTAMPTZ | N | - | - | 평가 시각 |
 
-인덱스: `(application_id, screening_id)`. 삭제 정책: 삭제 금지. 주요 무결성 규칙: 결과 수정 대신 신규 버전 추가.
+인덱스: `(application_id, screening_id)`. 삭제 정책: 삭제 금지. 주요 무결성 규칙: 신청이 고정 참조한 규칙 버전의 자격조건 결과만 저장하며 재평가 결과는 기존 행 수정 대신 신규 행으로 추가한다.
 
 ## STATUS_HISTORY
 

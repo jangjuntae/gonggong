@@ -22,9 +22,9 @@ API 버전(`/api/v1`) 적용 여부, 공통 페이지네이션과 세부 DTO 필
 
 | Method / URI | 설명·역할 | Request | Response | 주요 Validation | 실패 응답 | 트랜잭션 |
 |---|---|---|---|---|---|---|
-| `POST /api/applications` | 신청 초안 생성 / CUSTOMER | 상품 ID·신청 기본정보 | 신청 ID·`DRAFT` | 본인, 상품 존재·활성 | `400`, `403`, `404` | 필수 |
+| `POST /api/applications` | 신청 초안 생성 / CUSTOMER | 상품 ID·신청 기본정보 | 신청 ID·`DRAFT`·고정 규칙 버전 | 본인, 상품 존재·활성, 생성 시점의 활성 규칙 버전 | `400`, `403`, `404` | 필수 |
 | `POST /api/applications/{id}/documents` | 증빙 등록 / CUSTOMER | 문서 종류·파일 또는 저장키 | 문서 ID·검증 상태 | 신청 소유권, 상태, 형식·크기 | `400`, `403`, `404`, `409` | 필수(TODO: 파일 저장 경계) |
-| `POST /api/applications/{id}/submit` | 접수와 자격검증 / CUSTOMER | 현재 버전·제출 확인 | 상태·규칙 버전·검증 결과 | 필수값, 문서, 중복신청, `DRAFT` | `400`, `403`, `404`, `409` | 필수 |
+| `POST /api/applications/{id}/submit` | 접수와 자격검증 / CUSTOMER | 제출 확인 | 상태·고정 규칙 버전·검증 결과 | 필수값, 문서, 중복신청, `DRAFT`; 생성 시 고정한 규칙 버전 유지 | `400`, `403`, `404`, `409` | 필수 |
 | `GET /api/applications/{id}` | 신청 상세 / CUSTOMER·직원 | Path: 신청 ID | 역할별 신청 상세 | 본인 또는 담당 부서 | `403`, `404` | 읽기 전용 |
 | `POST /api/applications/{id}/assignments` | 최초 배정·재배정 / REVIEWER 또는 ADMIN(TODO) | 부서·직원 ID·배정 사유 | 배정 ID·현재 담당자·배정일시 | 권한, 직원 활성·소속 부서, 기존 활성 배정 | `400`, `403`, `404`, `409` | 필수: 기존 활성 배정 해제와 신규 배정 생성을 원자적으로 처리 |
 | `GET /api/applications/{id}/assignments/current` | 현재 담당자 조회 / 담당 직원·ADMIN·AUDITOR | Path: 신청 ID | 배정 ID·담당 부서·담당 직원·배정일시 | 신청 접근 범위, 활성 배정 존재 | `403`, `404` | 읽기 전용 |
