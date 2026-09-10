@@ -24,8 +24,7 @@ public class ApplicationAssignmentService {
             DepartmentRepository departmentRepository,
             EmployeeRepository employeeRepository,
             ApplicationAssignmentRepository assignmentRepository,
-            Clock clock
-    ) {
+            Clock clock) {
         this.applicationRepository = applicationRepository;
         this.departmentRepository = departmentRepository;
         this.employeeRepository = employeeRepository;
@@ -39,8 +38,7 @@ public class ApplicationAssignmentService {
             Long departmentId,
             Long employeeId,
             Long assignedByEmployeeId,
-            String reason
-    ) {
+            String reason) {
         validateReason(reason);
         PolicyFinanceApplication application = applicationRepository.findById(applicationId)
                 .orElseThrow(() -> new ApplicationBusinessException("Application not found: " + applicationId));
@@ -63,8 +61,7 @@ public class ApplicationAssignmentService {
         });
 
         return assignmentRepository.saveAndFlush(new ApplicationAssignment(
-                application, department, employee, assignedBy, assignedAt, reason
-        ));
+                application, department, employee, assignedBy, assignedAt, reason));
     }
 
     private Employee findActiveEmployee(Long employeeId, String label) {

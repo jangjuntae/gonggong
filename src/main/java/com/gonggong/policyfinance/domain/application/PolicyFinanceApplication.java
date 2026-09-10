@@ -131,6 +131,10 @@ public class PolicyFinanceApplication {
         transitionTo(ApplicationStatus.REJECTED);
     }
 
+    public void execute() {
+        transitionTo(ApplicationStatus.EXECUTED);
+    }
+
     private void transitionTo(ApplicationStatus nextStatus) {
         status.validateTransition(nextStatus);
         this.status = nextStatus;

@@ -294,10 +294,14 @@ STEP 05 구현 기준: 처리자는 `changed_by_employee_id BIGINT NULL` 외래 
 | application_id | BIGINT | N | FK | UNIQUE | 신청당 하나 |
 | principal | NUMERIC(19,2) | N | - | CHECK > 0 | 실행 원금 |
 | outstanding_balance | NUMERIC(19,2) | N | - | CHECK >= 0 | 현재 잔액 |
+| interest_rate | NUMERIC(7,4) | N | - | CHECK >= 0 | 신청에 고정된 규칙 버전의 실행 금리 |
 | executed_at | TIMESTAMPTZ | N | - | - | 실행 시각 |
+| created_at | TIMESTAMPTZ | N | - | DEFAULT CURRENT_TIMESTAMP | 생성 시각 |
 | version | BIGINT | N | - | DEFAULT 0 | 동시성 제어 |
 
 인덱스: `UK(application_id)`. 삭제 정책: 삭제 금지. 주요 무결성 규칙: 잔액은 원장과 정기 대사.
+
+STEP 06 MVP에서 `principal`과 최초 `outstanding_balance`는 신청의 `requested_amount`를 사용하고, `interest_rate`는 신청에 고정된 `PRODUCT_RULE_VERSION`에서 가져온다. 승인금액을 신청금액과 별도로 관리하는 정책은 LATER이다.
 
 ## REPAYMENT_SCHEDULE
 

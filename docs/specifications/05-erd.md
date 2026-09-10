@@ -122,6 +122,10 @@ erDiagram
     LOAN {
         bigint id PK
         bigint application_id FK,UK
+        decimal principal
+        decimal outstanding_balance
+        decimal interest_rate
+        timestamptz executed_at
     }
     REPAYMENT_SCHEDULE {
         bigint id PK
