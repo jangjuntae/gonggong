@@ -21,7 +21,8 @@ erDiagram
     DEPARTMENT ||--o{ APPLICATION_ASSIGNMENT : responsible_department
     EMPLOYEE ||--o{ APPLICATION_ASSIGNMENT : assigned_employee
     EMPLOYEE ||--o{ APPLICATION_ASSIGNMENT : assigned_by
-    APPLICATION ||--o{ SCREENING_RESULT : reviewed_by
+    APPLICATION ||--o{ SCREENING_RESULT : has_results
+    ELIGIBILITY_RULE ||--o{ SCREENING_RESULT : evaluated_by
     APPLICATION ||--o{ STATUS_HISTORY : changes
     APPLICATION ||--o| LOAN : results_in
     LOAN ||--o{ REPAYMENT_SCHEDULE : schedules
@@ -36,6 +37,7 @@ erDiagram
 
     CUSTOMER {
         bigint id PK
+        string customer_no UK
     }
     EMPLOYEE {
         bigint id PK
@@ -95,7 +97,8 @@ erDiagram
     SCREENING_RESULT {
         bigint id PK
         bigint application_id FK
-        bigint employee_id FK
+        bigint eligibility_rule_id FK
+        boolean passed
     }
     STATUS_HISTORY {
         bigint id PK

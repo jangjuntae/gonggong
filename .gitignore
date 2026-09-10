@@ -1,0 +1,9 @@
+.gradle/
+.gradle-bootstrap/
+build/
+out/
+.idea/
+*.iml
+.vscode/
+.env
+data/
