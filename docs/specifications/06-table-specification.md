@@ -30,8 +30,10 @@
 |---|---|---|---|---|---|
 | employee_id | BIGINT | N | PK | IDENTITY | 직원 ID |
 | employee_no | VARCHAR(30) | N | - | UNIQUE | 사번 |
+| name | VARCHAR(100) | N | - | - | 직원명 |
 | department_id | BIGINT | N | FK | DEPARTMENT | 현 소속 |
 | active | BOOLEAN | N | - | DEFAULT TRUE | 활성 여부 |
+| created_at | TIMESTAMPTZ | N | - | DEFAULT CURRENT_TIMESTAMP | 생성 시각 |
 
 인덱스: `(department_id, active)`.  
 삭제 정책: 비활성화.  
@@ -46,6 +48,8 @@
 | department_id | BIGINT | N | PK | IDENTITY | 부서 ID |
 | code | VARCHAR(30) | N | - | UNIQUE | 부서 코드 |
 | name | VARCHAR(100) | N | - | - | 부서명 |
+| active | BOOLEAN | N | - | DEFAULT TRUE | 활성 여부 |
+| created_at | TIMESTAMPTZ | N | - | DEFAULT CURRENT_TIMESTAMP | 생성 시각 |
 
 인덱스: `UK(code)`. 삭제 정책: 사용 중이면 삭제 금지. 주요 무결성 규칙: 조직 계층은 TODO.
 
@@ -194,6 +198,8 @@
 
 ## APPLICATION_ASSIGNMENT
 
+STEP 05 구현 기준: `active BOOLEAN NOT NULL`과 `reason VARCHAR(500) NOT NULL`을 사용한다. 현재 담당자는 `UNIQUE(application_id) WHERE active = TRUE` 부분 인덱스로 신청별 최대 1명을 보장한다. `(department_id, employee_id)` 복합 FK는 담당 직원과 담당 부서의 일치를 보장하며, CHECK 제약은 활성 배정이면 `released_at IS NULL`, 해제 배정이면 `released_at IS NOT NULL`이 되도록 한다.
+
 목적: 신청의 담당 부서·담당 직원 배정과 재배정 이력을 보존하고 현재 담당자를 식별한다.
 
 | 컬럼 | 타입 | NULL | PK/FK | 제약조건 | 설명 |
@@ -205,10 +211,14 @@
 | assigned_at | TIMESTAMPTZ | N | - | DEFAULT now() | 배정 시각 |
 | assigned_by_employee_id | BIGINT | N | FK | EMPLOYEE | 배정 처리자 |
 | released_at | TIMESTAMPTZ | Y | - | CHECK(released_at >= assigned_at) | 해제·재배정 시각 |
+| active | BOOLEAN | N | - | 현재 배정 여부 |
+| reason | VARCHAR(500) | N | - | 배정·재배정 사유 |
 
-인덱스: 현재 담당자 조회용 PostgreSQL 부분 UNIQUE 인덱스 `UNIQUE(application_id) WHERE released_at IS NULL`, 담당자 업무목록용 `(employee_id, released_at, assigned_at)`, 부서별 조회용 `(department_id, released_at)`.  
+인덱스: 현재 담당자 조회용 PostgreSQL 부분 UNIQUE 인덱스 `UNIQUE(application_id) WHERE active = TRUE`, 이력 조회용 `(application_id, assigned_at)`.
 삭제 정책: 물리 삭제 금지. 잘못된 배정도 해제 처리하고 이력을 보존한다.  
-주요 무결성 규칙: 신청당 활성 배정은 최대 하나이다. `employee_id`의 현 소속이 `department_id`와 같은지는 애플리케이션에서 검증하며 과거 부서 변경 후에도 배정 당시 부서 FK를 보존한다. MVP는 직원이 수행하는 수동 배정만 지원하며 자동 배정의 시스템 행위자 표현은 향후 TODO이다.
+주요 무결성 규칙: 신청당 활성 배정은 최대 하나이다. `(department_id, employee_id)` 복합 FK로 배정 당시 직원의 소속 부서 일치를 보장한다. MVP는 직원이 수행하는 수동 배정만 지원하며 자동 배정의 시스템 행위자 표현은 향후 TODO이다.
+
+LATER: 직원 부서 이동 기능을 구현할 때는 직원 소속 이력, 배정 당시 부서 스냅샷 또는 부서 변경 제한 정책 중 하나를 결정한다.
 
 ## APPLICATION_DOCUMENT
 
@@ -226,7 +236,9 @@
 
 ## SCREENING_RESULT
 
-목적: STEP 04 자동 자격검증의 규칙별 결과와 근거 보존. 수동 심사 결과 확장은 STEP 05에서 검토한다.
+STEP 05 구현 기준: 이 테이블은 자동 자격검증 결과만 저장한다. 담당 직원의 수동 심사 행위와 의견은 아래 `APPLICATION_REVIEW`에 분리한다.
+
+목적: STEP 04 자동 자격검증의 규칙별 결과와 근거 보존. 수동 심사 행위와 의견은 `APPLICATION_REVIEW`에 저장한다.
 
 | 컬럼 | 타입 | NULL | PK/FK | 제약조건 | 설명 |
 |---|---|---|---|---|---|
@@ -241,6 +253,8 @@
 
 ## STATUS_HISTORY
 
+STEP 05 구현 기준: 처리자는 `changed_by_employee_id BIGINT NULL` 외래 키로 저장한다. 직원 전이는 해당 직원을 기록하고 시스템 전이는 NULL을 허용한다. `reason`은 `VARCHAR(500) NOT NULL`이며 상태 이력은 추가만 한다.
+
 목적: 신청 상태 전이 이력.
 
 | 컬럼 | 타입 | NULL | PK/FK | 제약조건 | 설명 |
@@ -249,11 +263,26 @@
 | application_id | BIGINT | N | FK | APPLICATION | 신청 |
 | before_status | VARCHAR(30) | N | - | CHECK | 변경 전 상태 |
 | after_status | VARCHAR(30) | N | - | CHECK | 변경 후 상태 |
-| actor_id | VARCHAR(100) | N | - | - | 처리자 |
-| reason | TEXT | N | - | - | 변경 사유 |
+| changed_by_employee_id | BIGINT | Y | FK | EMPLOYEE | 처리 직원, 시스템 전이는 NULL |
+| reason | VARCHAR(500) | N | - | - | 변경 사유 |
 | changed_at | TIMESTAMPTZ | N | - | - | 변경 시각 |
 
 인덱스: `(application_id, changed_at)`. 삭제 정책: 삭제 금지. 주요 무결성 규칙: 변경 전후 상태 동일 금지.
+
+## APPLICATION_REVIEW
+
+목적: 자동 자격검증 결과와 구분되는 담당 직원의 수동 심사 행위와 의견을 보존한다.
+
+| 컬럼 | 타입 | NULL | PK/FK | 제약조건 | 설명 |
+|---|---|---|---|---|---|
+| review_id | BIGINT | N | PK | IDENTITY | 수동 심사 기록 ID |
+| application_id | BIGINT | N | FK | APPLICATION | 신청 |
+| employee_id | BIGINT | N | FK | EMPLOYEE | 심사 담당자 |
+| action | VARCHAR(30) | N | - | CHECK | 심사 시작·보완 요청·재개·승인·거절 |
+| comment | VARCHAR(1000) | N | - | - | 심사 의견 또는 결정 사유 |
+| created_at | TIMESTAMPTZ | N | - | - | 기록 시각 |
+
+인덱스: `(application_id, created_at)`. 기록은 수정·삭제하지 않고 추가만 한다.
 
 ## LOAN
 
@@ -265,10 +294,14 @@
 | application_id | BIGINT | N | FK | UNIQUE | 신청당 하나 |
 | principal | NUMERIC(19,2) | N | - | CHECK > 0 | 실행 원금 |
 | outstanding_balance | NUMERIC(19,2) | N | - | CHECK >= 0 | 현재 잔액 |
+| interest_rate | NUMERIC(7,4) | N | - | CHECK >= 0 | 신청에 고정된 규칙 버전의 실행 금리 |
 | executed_at | TIMESTAMPTZ | N | - | - | 실행 시각 |
+| created_at | TIMESTAMPTZ | N | - | DEFAULT CURRENT_TIMESTAMP | 생성 시각 |
 | version | BIGINT | N | - | DEFAULT 0 | 동시성 제어 |
 
 인덱스: `UK(application_id)`. 삭제 정책: 삭제 금지. 주요 무결성 규칙: 잔액은 원장과 정기 대사.
+
+STEP 06 MVP에서 `principal`과 최초 `outstanding_balance`는 신청의 `requested_amount`를 사용하고, `interest_rate`는 신청에 고정된 `PRODUCT_RULE_VERSION`에서 가져온다. 승인금액을 신청금액과 별도로 관리하는 정책은 LATER이다.
 
 ## REPAYMENT_SCHEDULE
 

@@ -103,9 +103,41 @@ public class PolicyFinanceApplication {
     }
 
     public void submit(Instant submittedAt) {
-        status.validateTransition(ApplicationStatus.RECEIVED);
-        this.status = ApplicationStatus.RECEIVED;
+        transitionTo(ApplicationStatus.RECEIVED);
         this.submittedAt = submittedAt;
+    }
+
+    public void startEligibilityCheck() {
+        transitionTo(ApplicationStatus.ELIGIBILITY_CHECK);
+    }
+
+    public void startReview() {
+        transitionTo(ApplicationStatus.UNDER_REVIEW);
+    }
+
+    public void requestSupplement() {
+        transitionTo(ApplicationStatus.SUPPLEMENT_REQUESTED);
+    }
+
+    public void resumeReview() {
+        transitionTo(ApplicationStatus.UNDER_REVIEW);
+    }
+
+    public void approve() {
+        transitionTo(ApplicationStatus.APPROVED);
+    }
+
+    public void reject() {
+        transitionTo(ApplicationStatus.REJECTED);
+    }
+
+    public void execute() {
+        transitionTo(ApplicationStatus.EXECUTED);
+    }
+
+    private void transitionTo(ApplicationStatus nextStatus) {
+        status.validateTransition(nextStatus);
+        this.status = nextStatus;
     }
 
     public Long getId() {
